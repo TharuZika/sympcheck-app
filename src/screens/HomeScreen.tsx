@@ -12,8 +12,11 @@ import {
 import tw from 'twrnc';
 import { SymptomAnalysisRequest, SymptomAnalysisResponse } from '../types/api';
 import { getApiUrl } from '../config/api';
+import { useAuth } from '../contexts/AuthContext';
+import authService from '../services/authService';
 
 const HomeScreen = ({ navigation }: { navigation: any }) => {
+  const { user, isLoggedIn } = useAuth();
   const [symptoms, setSymptoms] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -24,21 +27,38 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     }
 
     setIsLoading(true);
+
+    let symptomList: string[] = [];
+
+    if (symptoms) {
+      symptoms.split(',').forEach(symptom => {
+        symptomList.push(symptom.trim());
+      });
+    }
     
     try {
       const payload: SymptomAnalysisRequest = {
         symptomps: symptoms,
-        sympList: ["vomiting", "fever", "headache"], // dummy data for now
-        age: "21" // dummy data for now
+        sympList: symptomList,
+        age: "21"
       };
 
       const API_URL = getApiUrl('/api/v1/symptoms/analyze');
       
+      const headers: any = {
+        'Content-Type': 'application/json',
+      };
+
+      if (isLoggedIn) {
+        const token = authService.getToken();
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+      }
+      
       const response = await fetch(API_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -68,7 +88,12 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
           source={require('../../assets/logo-test.jpg')}
           style={tw`w-20 h-20 mb-2.5`}
         />
-        <Text style={tw`text-3xl font-bold mb-10`}>SympCheck</Text>
+        <Text style={tw`text-3xl font-bold mb-2`}>SympCheck</Text>
+        {isLoggedIn && user && (
+          <Text style={tw`text-sm text-gray-600 mb-8 text-center`}>
+            Welcome back, {user.name || user.email}!
+          </Text>
+        )}
 
         <Text style={tw`text-xl mb-5 self-start`}>Enter your symptoms</Text>
         <View style={tw`flex-row items-center mb-5 w-full`}>
@@ -101,12 +126,18 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
             style={tw`bg-white border border-blue-500 rounded-full py-4 px-8 w-[48%] items-center`}
             onPress={() => navigation.navigate('Auth')}>
             <Text style={tw`text-blue-500 text-base font-bold`}>
-              Login/Register
+              {isLoggedIn ? 'Account' : 'Login/Register'}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={tw`bg-white border border-blue-500 rounded-full py-4 px-8 w-[48%] items-center`}
-            onPress={() => navigation.navigate('Profile')}>
+            style={tw`bg-white border border-blue-500 rounded-full py-4 px-8 w-[48%] items-center ${!isLoggedIn ? 'opacity-50' : ''}`}
+            onPress={() => {
+              if (isLoggedIn) {
+                navigation.navigate('Profile');
+              } else {
+                Alert.alert('Login Required', 'Please login to view your history');
+              }
+            }}>
             <Text style={tw`text-blue-500 text-base font-bold`}>History</Text>
           </TouchableOpacity>
         </View>
