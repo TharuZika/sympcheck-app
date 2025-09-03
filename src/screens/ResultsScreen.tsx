@@ -1,133 +1,376 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import tw from 'twrnc';
+// @ts-ignore
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { SymptomAnalysisResponse, PossibleCondition } from '../types/api';
+import ModernCard from '../components/ModernCard';
+import ModernButton from '../components/ModernButton';
+
+const { width } = Dimensions.get('window');
+
 
 const ResultsScreen = ({ navigation, route }: { navigation: any; route: any }) => {
-  const { analysisData }: { analysisData: SymptomAnalysisResponse } = route.params || {};
+  const { analysisData } = route.params || {};
+  const [selectedDiseaseIndex, setSelectedDiseaseIndex] = useState<number>(0);
   
-  const getProbabilityColor = (probability: string) => {
-    switch (probability.toLowerCase()) {
+  const getCriticalLevelColors = (level: string) => {
+    switch (level.toLowerCase()) {
       case 'high':
-        return 'bg-red-500';
+        return {
+          bg: 'bg-red-50',
+          border: 'border-red-200',
+          text: 'text-red-800',
+          badge: 'bg-red-500',
+          iconName: 'error',
+          iconColor: '#f44336'
+        };
       case 'medium':
-        return 'bg-yellow-500';
+        return {
+          bg: 'bg-yellow-50',
+          border: 'border-yellow-200',
+          text: 'text-yellow-800',
+          badge: 'bg-yellow-500',
+          iconName: 'warning',
+          iconColor: '#ff9800'
+        };
       case 'low':
-        return 'bg-green-500';
+        return {
+          bg: 'bg-green-50',
+          border: 'border-green-200',
+          text: 'text-green-800',
+          badge: 'bg-green-500',
+          iconName: 'check-circle',
+          iconColor: '#4caf50'
+        };
       default:
-        return 'bg-gray-500';
+        return {
+          bg: 'bg-gray-50',
+          border: 'border-gray-200',
+          text: 'text-gray-800',
+          badge: 'bg-gray-500',
+          iconName: 'help-outline',
+          iconColor: '#757575'
+        };
     }
   };
 
-  const getProbabilityText = (probability: string) => {
-    switch (probability.toLowerCase()) {
-      case 'high':
-        return 'High Risk';
-      case 'medium':
-        return 'Medium Risk';
-      case 'low':
-        return 'Low Risk';
-      default:
-        return 'Unknown';
-    }
+  const renderMedicalSection = (
+    title: string,
+    content: string[] | string,
+    iconName: string,
+    iconColor: string,
+    bgColor: string = 'bg-white'
+  ) => {
+    const contentArray = Array.isArray(content) ? content : [content];
+    
+    return (
+      <ModernCard variant="elevated" style={tw`mb-4 ${bgColor}`}>
+        <View style={tw`flex-row items-center mb-3`}>
+          <Icon name={iconName} size={24} color={iconColor} style={tw`mr-3`} />
+          <Text style={tw`text-lg font-semibold text-gray-800`}>
+            {title}
+          </Text>
+        </View>
+        
+        <View>
+          {contentArray.map((item, index) => (
+            <View key={index} style={tw`flex-row items-start mb-3`}>
+              <Icon name="circle" size={8} color="#3b82f6" style={tw`mr-3 mt-2`} />
+              <Text style={tw`text-gray-700 flex-1 leading-6`}>
+                {item}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </ModernCard>
+    );
   };
 
-  const getConditionSeverity = (condition: number) => {
-    if (condition >= 80) return { level: 'Critical', color: 'bg-red-500', textColor: 'text-red-800', bgColor: 'bg-red-100' };
-    if (condition >= 60) return { level: 'High', color: 'bg-orange-500', textColor: 'text-orange-800', bgColor: 'bg-orange-100' };
-    if (condition >= 40) return { level: 'Medium', color: 'bg-yellow-500', textColor: 'text-yellow-800', bgColor: 'bg-yellow-100' };
-    return { level: 'Low', color: 'bg-green-500', textColor: 'text-green-800', bgColor: 'bg-green-100' };
+  const renderDiseaseCard = (disease: any, index: number, isSelected: boolean) => {
+    const colors = getCriticalLevelColors(disease.critical_level || disease.medical_advice?.critical_level || 'Medium');
+    const hasDetailedAdvice = disease.medical_advice && disease.medical_advice.general_care;
+    
+    return (
+      <TouchableOpacity
+        key={index}
+        onPress={() => setSelectedDiseaseIndex(index)}
+        style={tw`mb-4`}
+      >
+        <ModernCard 
+          variant="elevated" 
+          style={tw`${isSelected ? `${colors.bg} ${colors.border} border-2` : 'bg-white border border-gray-200'} overflow-hidden`}
+        >
+          <View style={tw`flex-row items-center justify-between p-4`}>
+            <View style={tw`flex-1`}>
+              <View style={tw`flex-row items-center justify-between mb-2`}>
+                <Text style={tw`text-xl font-bold ${isSelected ? colors.text : 'text-gray-800'}`}>
+                  {disease.name || disease.disease}
+                </Text>
+                {isSelected && (
+                  <View style={tw`${colors.badge} px-3 py-1 rounded-full`}>
+                    <Text style={tw`text-white text-xs font-bold`}>SELECTED</Text>
+                  </View>
+                )}
+              </View>
+              <View style={tw`flex-row items-center justify-between`}>
+                <View style={tw`flex-row items-center`}>
+                  <Icon name={colors.iconName} size={18} color={colors.iconColor} style={tw`mr-2`} />
+                  <Text style={tw`text-sm font-medium ${isSelected ? colors.text : 'text-gray-600'}`}>
+                    {disease.critical_level || disease.medical_advice?.critical_level || 'Medium'} Risk
+                  </Text>
+                </View>
+                <View style={tw`flex-row items-center`}>
+                  <Text style={tw`text-lg font-bold ${isSelected ? colors.text : 'text-gray-700'} mr-2`}>
+                    {Math.round(disease.probability || 50)}%
+                  </Text>
+                  <Text style={tw`text-xs ${isSelected ? colors.text : 'text-gray-500'}`}>
+                    confidence
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {isSelected && hasDetailedAdvice && (
+            <View style={tw`border-t ${colors.border} bg-white bg-opacity-50`}>
+              <View style={tw`p-4 border-b border-gray-100`}>
+                <Text style={tw`text-sm font-semibold ${colors.text} mb-2`}>
+                  Medical Summary
+                </Text>
+                <Text style={tw`text-sm text-gray-700 leading-5`}>
+                  {disease.medical_advice.seek_attention}
+                </Text>
+              </View>
+
+              <View style={tw`p-4`}>
+                <Text style={tw`text-lg font-bold ${colors.text} mb-4`}>
+                  Complete Medical Guidance
+                </Text>
+                
+                <View style={tw`mb-5`}>
+                  <View style={tw`flex-row items-center mb-3`}>
+                    <Text style={tw`font-bold text-gray-800 text-base`}>General Care Instructions</Text>
+                  </View>
+                  {(disease.medical_advice.general_care || []).map((item: string, idx: number) => (
+                    <View key={idx} style={tw`flex-row items-start mb-2 ml-6`}>
+                      <Icon name="circle" size={6} color="#3b82f6" style={tw`mr-2 mt-1`} />
+                      <Text style={tw`text-sm text-gray-700 flex-1 leading-5`}>
+                        {item}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={tw`mb-5`}>
+                  <View style={tw`flex-row items-center mb-3`}>
+                    <Text style={tw`font-bold text-gray-800 text-base`}>When to Seek Medical Attention</Text>
+                  </View>
+                  <View style={tw`ml-6 bg-red-50 p-3 rounded-lg border-l-4 border-red-400`}>
+                    <Text style={tw`text-sm text-gray-700 leading-5`}>
+                      {disease.medical_advice.seek_attention}
+                    </Text>
+                  </View>
+                </View>
+
+                {disease.medical_advice.precautions && disease.medical_advice.precautions.length > 0 && (
+                  <View style={tw`mb-5`}>
+                    <View style={tw`flex-row items-center mb-3`}>
+                      <Text style={tw`font-bold text-gray-800 text-base`}>Important Precautions</Text>
+                    </View>
+                    {disease.medical_advice.precautions.map((item: string, idx: number) => (
+                      <View key={idx} style={tw`flex-row items-start mb-2 ml-6`}>
+                        <Icon name="warning" size={12} color="#f59e0b" style={tw`mr-2 mt-1`} />
+                        <Text style={tw`text-sm text-gray-700 flex-1 leading-5`}>
+                          {item}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {disease.medical_advice.next_steps && (
+                  <View style={tw`mb-5`}>
+                    <View style={tw`flex-row items-center mb-3`}>
+                      <Text style={tw`font-bold text-gray-800 text-base`}>Recommended Next Steps</Text>
+                    </View>
+                    <View style={tw`ml-6 bg-green-50 p-3 rounded-lg border-l-4 border-green-400`}>
+                      <Text style={tw`text-sm text-gray-700 leading-5`}>
+                        {disease.medical_advice.next_steps}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {disease.medical_advice.disclaimer && (
+                  <View style={tw`mt-4 p-3 bg-gray-100 rounded-lg`}>
+                    <View style={tw`flex-row items-start`}>
+                      <Icon name="info" size={16} color="#6b7280" style={tw`mr-2 mt-1`} />
+                      <Text style={tw`text-xs text-gray-600 leading-4 flex-1`}>
+                        {disease.medical_advice.disclaimer}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
+          {!isSelected && (
+            <View style={tw`px-4 pb-3`}>
+              <View style={tw`flex-row items-center justify-between`}>
+                <Text style={tw`text-xs text-gray-500`}>
+                  {hasDetailedAdvice ? 'Detailed guidance available' : 'Basic info only'}
+                </Text>
+                <Text style={tw`text-xs text-blue-500`}>
+                  Tap to view details →
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {isSelected && !hasDetailedAdvice && (
+            <View style={tw`border-t border-gray-200 p-4 bg-gray-50`}>
+              <View style={tw`flex-row items-center`}>
+                <Icon name="info" size={16} color="#6b7280" style={tw`mr-2`} />
+                <Text style={tw`text-sm text-gray-600`}>
+                  Limited medical guidance available for this condition
+                </Text>
+              </View>
+            </View>
+          )}
+        </ModernCard>
+      </TouchableOpacity>
+    );
   };
 
   if (!analysisData) {
     return (
-      <SafeAreaView style={tw`flex-1 bg-gray-50`}>
-        <View style={tw`flex-1 items-center justify-center p-5`}>
-          <Text style={tw`text-xl text-gray-500`}>No analysis data available</Text>
-          <TouchableOpacity 
-            style={tw`bg-blue-500 rounded-full py-3 px-6 mt-5`}
-            onPress={() => navigation.goBack()}>
-            <Text style={tw`text-white font-bold`}>Go Back</Text>
-          </TouchableOpacity>
+      <SafeAreaView style={tw`flex-1 bg-gradient-to-br from-blue-50 to-indigo-100`}>
+        <View style={tw`flex-1 items-center justify-center p-6`}>
+          <Text style={tw`text-2xl font-bold text-gray-800 mb-4`}>No Results Available</Text>
+          <Text style={tw`text-gray-600 text-center mb-6`}>
+            We couldn't find any analysis data. Please try again.
+          </Text>
+          <ModernButton
+            title="Go Back"
+            onPress={() => navigation.goBack()}
+            leftIcon="←"
+          />
         </View>
       </SafeAreaView>
     );
   }
 
-  const severity = getConditionSeverity(analysisData.condition);
+  const allDiseases = [];
+  if (analysisData.topDisease) {
+    allDiseases.push(analysisData.topDisease);
+  }
+  if (analysisData.otherDiseases) {
+    allDiseases.push(...analysisData.otherDiseases);
+  }
+  
+  if (allDiseases.length === 0 && analysisData.possibleConditions) {
+    allDiseases.push(...analysisData.possibleConditions.map((condition: any) => ({
+      name: condition.name,
+      disease: condition.name,
+      probability: 75, // defaultprobability
+      critical_level: condition.probability,
+      medical_advice: null
+    })));
+  }
+
+  const selectedDisease = allDiseases[selectedDiseaseIndex] || allDiseases[0];
 
   return (
-    <SafeAreaView style={tw`flex-1 bg-gray-50`}>
-      <ScrollView contentContainerStyle={tw`p-5`}>
-        <Text style={tw`text-2xl font-bold mb-2.5`}>Check Results</Text>
-        <Text style={tw`text-base text-gray-500 mb-5`}>
-          Condition severity: {severity.level}
-        </Text>
+    <SafeAreaView style={tw`flex-1 bg-gradient-to-br from-blue-50 to-indigo-100`}>
+      <ScrollView contentContainerStyle={tw`p-6`} showsVerticalScrollIndicator={false}>
+        
+       
+        <View style={tw`flex-row items-center justify-center mb-6`}>
+          <Text style={tw`text-2xl font-bold text-gray-800`}>Health Analysis</Text>
+          <View style={tw`w-10`} />
+        </View>
 
-        <View style={tw`bg-white rounded-2xl p-5 mb-5 shadow`}>
-          <Text style={tw`text-lg font-bold mb-4`}>Condition Severity</Text>
-          <View style={tw`items-center`}>
-            <View style={tw`h-2.5 w-full bg-gray-200 rounded-full overflow-hidden flex-row`}>
-              <View style={[tw`h-full ${severity.color}`, { width: `${analysisData.condition}%` }]} />
+       
+        <View style={tw`mb-6`}>
+          <View style={tw`flex-row items-center justify-between mb-4`}>
+            <View style={tw`flex-row items-center`}>
+              <Text style={tw`text-xl font-bold text-gray-800`}>
+                Analysis Results
+              </Text>
             </View>
-            <View style={tw`flex-row justify-between w-full mt-2.5`}>
-              <View style={tw`${severity.bgColor} py-1 px-2.5 rounded-full`}>
-                <Text style={tw`text-sm font-bold ${severity.textColor}`}>
-                  {severity.level}
-                </Text>
-              </View>
-              <Text style={tw`text-sm text-gray-600`}>
-                {analysisData.condition}% severity
+            <View style={tw`bg-blue-100 px-3 py-1 rounded-full`}>
+              <Text style={tw`text-blue-700 text-xs font-semibold`}>
+                {allDiseases.length} condition{allDiseases.length > 1 ? 's' : ''} found
               </Text>
             </View>
           </View>
-        </View>
-
-        <View style={tw`bg-white rounded-2xl p-5 mb-5 shadow`}>
-          <Text style={tw`text-lg font-bold mb-4`}>Possible Conditions</Text>
-          {analysisData.possibleConditions?.map((condition: PossibleCondition, index: number) => (
-            <View key={index} style={tw`mb-4 p-4 border border-gray-200 rounded-lg`}>
-              <View style={tw`flex-row justify-between items-center mb-2`}>
-                <Text style={tw`text-base font-bold`}>{condition.name}</Text>
-                <View style={tw`${getProbabilityColor(condition.probability)} px-2 py-1 rounded-full`}>
-                  <Text style={tw`text-white text-xs font-bold`}>
-                    {getProbabilityText(condition.probability)}
-                  </Text>
-                </View>
-              </View>
-              <Text style={tw`text-sm text-gray-600`}>{condition.description}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={tw`bg-white rounded-2xl p-5 mb-5 shadow`}>
-          <Text style={tw`text-lg font-bold mb-4`}>Recommendations</Text>
-          {analysisData.recommendations?.map((recommendation: string, index: number) => (
-            <View key={index} style={tw`flex-row items-start mb-3`}>
-              <Text style={tw`text-blue-500 mr-2 mt-1`}>•</Text>
-              <Text style={tw`text-sm text-gray-700 flex-1`}>{recommendation}</Text>
-            </View>
-          ))}
-        </View>
-
-        <TouchableOpacity style={tw`bg-blue-500 rounded-full py-4 items-center mb-5`}>
-          <Text style={tw`text-white text-lg font-bold`}>
-            Find Nearby Medical Help
+          
+          <Text style={tw`text-sm text-gray-600 mb-4`}>
+            Tap any condition card to view detailed medical guidance. The most likely condition is selected by default.
           </Text>
-        </TouchableOpacity>
-
-        <View style={tw`items-center`}>
-          <Text style={tw`text-blue-500 text-base`}>Map/Geminal Help</Text>
+          
+          {allDiseases.map((disease, index) => 
+            renderDiseaseCard(disease, index, index === selectedDiseaseIndex)
+          )}
         </View>
+
+       
+        <ModernCard variant="elevated" style={tw`mb-6 bg-gray-100`}>
+          <View style={tw`flex-row items-start`}>
+            <Icon name="info" size={24} color="#6b7280" style={tw`mr-3`} />
+            <View style={tw`flex-1`}>
+              <Text style={tw`text-sm font-semibold text-gray-800 mb-2`}>
+                Important Disclaimer
+              </Text>
+              <Text style={tw`text-xs text-gray-600 leading-5`}>
+                {selectedDisease?.medical_advice?.disclaimer || 
+                 'This analysis is for informational purposes only and should not replace professional medical advice. Always consult with qualified healthcare professionals for proper diagnosis and treatment.'}
+              </Text>
+            </View>
+          </View>
+        </ModernCard>
+
+        <View style={tw`flex-row mb-6`}>
+          <ModernButton
+            title="Find Doctor"
+            leftIcon="🏥"
+            variant="primary"
+            style={tw`flex-1 mr-2`}
+            onPress={() => {
+              // TODO: find doctor 
+            }}
+          />
+          {/* <ModernButton
+            title="Save Results"
+            leftIcon="💾"
+            variant="outline"
+            style={tw`flex-1 ml-2`}
+            onPress={() => {
+              // TODO: manual save 
+            }}
+          /> */}
+        </View>
+
+        <ModernButton
+          title="New Analysis"
+          leftIcon="🔄"
+          variant="ghost"
+          onPress={() => navigation.goBack()}
+          fullWidth
+        />
+
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-export default ResultsScreen; 
+export default ResultsScreen;

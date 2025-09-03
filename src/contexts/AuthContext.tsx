@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import authService, { User, LoginCredentials, RegisterData } from '../services/authService';
+import authService, { LoginCredentials, RegisterData } from '../services/authService';
+import { User } from '../types/api';
 
 interface AuthContextType {
   user: User | null;
@@ -8,7 +9,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (updates: { name?: string; age?: number }) => Promise<void>;
+  updateProfile: (updates: { name?: string; age?: number; birthday?: string; weight?: number; height?: number }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,7 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const updateProfile = async (updates: { name?: string; age?: number }) => {
+  const updateProfile = async (updates: { name?: string; age?: number; birthday?: string; weight?: number; height?: number }) => {
     try {
       const updatedUser = await authService.updateProfile(updates);
       setUser(updatedUser);

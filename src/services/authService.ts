@@ -1,21 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApiUrl } from '../config/api';
-
-export interface User {
-  id: number;
-  email: string;
-  name?: string;
-  age?: number;
-}
-
-export interface AuthResponse {
-  status: string;
-  message: string;
-  data: {
-    user: User;
-    token: string;
-  };
-}
+import { User, AuthResponse } from '../types/api';
 
 export interface LoginCredentials {
   email: string;
@@ -27,6 +12,9 @@ export interface RegisterData {
   password: string;
   name?: string;
   age?: number;
+  birthday?: string;
+  weight?: number;
+  height?: number;
 }
 
 const TOKEN_KEY = 'sympcheck_token';
@@ -142,7 +130,7 @@ class AuthService {
     return data.data.user;
   }
 
-  async updateProfile(updates: { name?: string; age?: number }): Promise<User> {
+  async updateProfile(updates: { name?: string; age?: number; birthday?: string; weight?: number; height?: number }): Promise<User> {
     if (!this.token) {
       throw new Error('No authentication token');
     }
