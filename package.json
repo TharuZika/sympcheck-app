@@ -15,6 +15,8 @@
     "@react-navigation/native": "^7.1.14",
     "@react-navigation/stack": "^7.4.0",
     "expo": "~53.0.12",
+    "expo-linking": "~7.0.3",
+    "expo-location": "~18.0.4",
     "expo-status-bar": "~2.2.3",
     "lottie-react-native": "^7.3.3",
     "nativewind": "^2.0.11",

@@ -6,10 +6,14 @@ import {
   SafeAreaView,
   ScrollView,
   Dimensions,
+  Alert,
+  Platform,
 } from 'react-native';
 import tw from 'twrnc';
 // @ts-ignore
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import * as Location from 'expo-location';
+import * as Linking from 'expo-linking';
 import { SymptomAnalysisResponse, PossibleCondition } from '../types/api';
 import ModernCard from '../components/ModernCard';
 import ModernButton from '../components/ModernButton';
@@ -59,6 +63,74 @@ const ResultsScreen = ({ navigation, route }: { navigation: any; route: any }) =
           iconName: 'help-outline',
           iconColor: '#757575'
         };
+    }
+  };
+
+  const getCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Denied',
+          'Location permission is required to find nearby medical centers.',
+          [{ text: 'OK' }]
+        );
+        return null;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      return {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+    } catch (error) {
+      console.error('Error getting location:', error);
+      Alert.alert(
+        'Location Error',
+        'Unable to get your current location. Please try again.',
+        [{ text: 'OK' }]
+      );
+      return null;
+    }
+  };
+
+  const openGoogleMaps = async () => {
+    try {
+      const location = await getCurrentLocation();
+      
+      if (!location) {
+        return;
+      }
+
+      const { latitude, longitude } = location;
+      const searchQuery = 'medical center near me';
+      
+      let url: string;
+      
+      if (Platform.OS === 'ios') {
+        url = `maps://maps.google.com/maps?q=${encodeURIComponent(searchQuery)}&center=${latitude},${longitude}&zoom=13`;
+      } else {
+        url = `geo:${latitude},${longitude}?q=${encodeURIComponent(searchQuery)}`;
+      }
+
+      const canOpen = await Linking.canOpenURL(url);
+      
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        const webUrl = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}/@${latitude},${longitude},13z`;
+        await Linking.openURL(webUrl);
+      }
+    } catch (error) {
+      console.error('Error opening Google Maps:', error);
+      Alert.alert(
+        'Error',
+        'Unable to open Google Maps. Please try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -342,12 +414,9 @@ const ResultsScreen = ({ navigation, route }: { navigation: any; route: any }) =
         <View style={tw`flex-row mb-6`}>
           <ModernButton
             title="Find Doctor"
-            leftIcon="🏥"
             variant="primary"
             style={tw`flex-1 mr-2`}
-            onPress={() => {
-              // TODO: find doctor 
-            }}
+            onPress={openGoogleMaps}
           />
           {/* <ModernButton
             title="Save Results"

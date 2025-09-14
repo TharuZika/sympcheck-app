@@ -101,11 +101,19 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
         body: JSON.stringify(payload),
       });
 
+      const apiResponse = await response.json();
+      if (apiResponse.status === 'error') {
+        Alert.alert(
+          'Invalid Input', 
+          apiResponse.message || apiResponse.error || 'Please provide valid health symptoms',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      const apiResponse = await response.json();
       
       if (apiResponse.status === 'success' && apiResponse.data) {
         const predictions = apiResponse.data.predictions || [];
