@@ -36,6 +36,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { token, user: storedUser } = await authService.getStoredAuthData();
         if (token && storedUser) {
           setUser(storedUser);
+          try {
+            const freshProfile = await authService.getProfile();
+            setUser(freshProfile);
+          } catch (profileError) {
+            console.error('Error fetching fresh profile:', profileError);
+          }
         }
       } catch (error) {
         console.error('Error checking auth state:', error);

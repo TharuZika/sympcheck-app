@@ -70,17 +70,22 @@ const ResultsScreen = ({ navigation, route }: { navigation: any; route: any }) =
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          'Permission Denied',
-          'Location permission is required to find nearby medical centers.',
-          [{ text: 'OK' }]
-        );
         return null;
       }
 
-      const location = await Location.getCurrentPositionAsync({
+      const locationPromise = Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
+
+      const timeoutPromise = new Promise<null>((resolve) => {
+        setTimeout(() => resolve(null), 2000); 
+      });
+
+      const location = await Promise.race([locationPromise, timeoutPromise]);
+
+      if (!location) {
+        return null;
+      }
 
       return {
         latitude: location.coords.latitude,
@@ -88,32 +93,32 @@ const ResultsScreen = ({ navigation, route }: { navigation: any; route: any }) =
       };
     } catch (error) {
       console.error('Error getting location:', error);
-      Alert.alert(
-        'Location Error',
-        'Unable to get your current location. Please try again.',
-        [{ text: 'OK' }]
-      );
       return null;
     }
   };
 
   const openGoogleMaps = async () => {
     try {
-      const location = await getCurrentLocation();
-      
-      if (!location) {
-        return;
-      }
-
-      const { latitude, longitude } = location;
       const searchQuery = 'medical center near me';
+      
+      const location = await getCurrentLocation();
       
       let url: string;
       
-      if (Platform.OS === 'ios') {
-        url = `maps://maps.google.com/maps?q=${encodeURIComponent(searchQuery)}&center=${latitude},${longitude}&zoom=13`;
+      if (location) {
+        const { latitude, longitude } = location;
+        
+        if (Platform.OS === 'ios') {
+          url = `maps://maps.google.com/maps?q=${encodeURIComponent(searchQuery)}&center=${latitude},${longitude}&zoom=13`;
+        } else {
+          url = `geo:${latitude},${longitude}?q=${encodeURIComponent(searchQuery)}`;
+        }
       } else {
-        url = `geo:${latitude},${longitude}?q=${encodeURIComponent(searchQuery)}`;
+        if (Platform.OS === 'ios') {
+          url = `maps://maps.google.com/maps?q=${encodeURIComponent(searchQuery)}`;
+        } else {
+          url = `geo:0,0?q=${encodeURIComponent(searchQuery)}`;
+        }
       }
 
       const canOpen = await Linking.canOpenURL(url);
@@ -121,7 +126,9 @@ const ResultsScreen = ({ navigation, route }: { navigation: any; route: any }) =
       if (canOpen) {
         await Linking.openURL(url);
       } else {
-        const webUrl = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}/@${latitude},${longitude},13z`;
+        const webUrl = location 
+          ? `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}/@${location.latitude},${location.longitude},13z`
+          : `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
         await Linking.openURL(webUrl);
       }
     } catch (error) {

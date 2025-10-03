@@ -127,7 +127,11 @@ class AuthService {
     }
 
     const data = await response.json();
-    return data.data.user;
+    const user = data.data.user;
+    this.user = user;
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+    
+    return user;
   }
 
   async updateProfile(updates: { name?: string; age?: number; birthday?: string; weight?: number; height?: number }): Promise<User> {
